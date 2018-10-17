@@ -18,5 +18,5 @@ puts "Maze:"
 puts maze
 
 maze.solve
-puts "\n\nSolution:"
+puts "\n\nSolution (P = path, D = going down, U = going up, S = start, E = end)"
 puts maze

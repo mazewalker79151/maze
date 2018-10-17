@@ -1,28 +1,11 @@
 == README
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
-
-Things you may want to cover:
-
-* Ruby version
-
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+To generate a 3D maze:
+./_test_hypermaze.rb rows cols planes
 
 
-Please feel free to use a different markup language if you do not plan to run
-<tt>rake doc:app</tt>.
+
+To play with some 2D maze examples:
+./_test_maze.rb
+
+2D mazes are validated using the recursive algorithm and solved using the dijkstra algorithm. The web based version allows generating random 2D mazes and editing the walls.
