@@ -1,0 +1,76 @@
+      <div class="col-md-4" id="app">
+        <div class="canvas-config">
+          <ol>
+              <li class="hide">Set size <input type="number" v-model="planes" id="width"> by <input type="number" v-model="canvasWidth" id="width"> by <input type="number" v-model="canvasHeight" id="height">nodes</li>
+              <li><button @click="generateMaze" class="btn btn-default">Generate maze</button></li>
+          </ol>
+        </div>
+
+      </div>
+      <div class="col-md-8">
+        <div class="canvas-container"></div>
+      </div>
+
+    <script>
+      var isDown = false;
+      var app = new Vue({
+        el: "#app",
+        data: {
+          planes: 2, canvasWidth: 6, canvasHeight:6, dotSize:32,
+          maze: [],
+          loading: false
+        },
+        created: function(){
+        },
+        methods: {
+          generateMaze: function(){
+            if (!this.loading){
+              this.loading = true;
+              this.$http.post("/hypermaze/generate", { planes: this.planes, cols: this.canvasWidth, rows: this.canvasHeight }).then(function(response){
+                this.loading = false;
+                this.maze = response.body.maze;
+                this.drawCanvas();
+              }, function(error){
+                this.loading = false;
+                console.log(error);
+              });
+            }
+          },
+
+          drawCanvas: function(){
+            $(".canvas").remove();
+            var canvases = [];
+            for (var plane = 0; plane < this.maze.size; plane++ ) {
+                canvases[plane] = $('<canvas/>', {'class':'canvas', id: 'canvas'}).attr({'width':this.canvasWidthPx,'height': this.canvasHeightPx });
+                $(".canvas-container").append(c);
+
+                this.canvas = $("#canvas")[0];
+                var context = canvases[plane].getContext('2d');
+                  for (var row=0; row< plane.length; row++){
+                    for (var col=0; col < this.maze[plane][row].length; col++ ){
+                      context.beginPath();
+                      context.rect(col*this.dotSize-5,row*this.dotSize-5,this.dotSize+5,this.dotSize+5);
+                      context.fillStyle = '#ccc'; // default
+                      if (this.maze[row][col] == "x") { // wall
+                        context.fillStyle = 'black';
+                      }
+                      if (this.maze[row][col] == "E") {
+                        context.fillStyle = "green";
+                      }
+                      if (this.maze[row][col] == "S") {
+                        context.fillStyle = "red";
+                      }
+                      if (this.maze[row][col] == "P") {
+                        context.fillStyle = "orange";
+                      }
+                      var context = canvases[plane].getContext('2d');
+                      context.fill();
+                    }
+                  }
+            } // plane
+          } // drawCanvas
+        },
+        computed: {},
+        watch: {}
+      })
+    </script>

@@ -1,0 +1,210 @@
+      <div class="col-md-4" id="app">
+        <div class="canvas-config">
+          <ol>
+              <li class="hide">Set canvas size <input type="number" v-model="canvasWidth" id="width"> by <input type="number" v-model="canvasHeight" id="height">nodes
+              and up to <input type="number" id="dotcount" v-model="dotCount" step="2" > nodes</li>
+              <li><button @click="resetMaze" class="btn btn-default">Generate random maze</button></li>
+              <li><button @click="generateEntryExit" class="btn btn-default">Randomize entry & exit nodes</button></li>
+              <li>
+                  <button @click="validateMaze" v-bind:class="'btn btn-default ' + (validating?'disabled':'')">Validate</button> <span v-if="validating">validating...</span> <span v-if="show_validation_status">{{ valid?"Valid":"Invalid!" }}</span>
+                  <div class="small text-muted">Note: validation uses the recursive algo with a limit of 10K iterations, sometimes it returns invalid.</div>
+              </li>
+              <li>
+                <button @click="solveMaze" v-bind:class="'btn btn-success ' + ((valid && !solving)?'':'disabled')">Solve</button>
+              </li>
+          </ol>
+        </div>
+
+      </div>
+      <div class="col-md-8">
+        <div class="canvas-container"></div>
+        <div class="small text-muted">Click cells to toggle</div>
+      </div>
+
+    <script>
+      var isDown = false;
+      var app = new Vue({
+        el: "#app",
+        data: {
+          canvasWidth: 15, canvasHeight:15,
+          dotCount: 50,
+          dotSize:32,
+          maze: [],
+          validating: false,
+          valid: false,
+          show_validation_status: false, show_validation_status_timer: false,
+          solving: false,
+          entry : false, exit: false,
+          g_timer: false
+        },
+        created: function(){
+          this.resetMaze();
+        },
+        methods: {
+          resetMaze: function(){
+            this.maze = this.generateMaze();
+            this.generateDots();
+            this.generateEntryExit();
+            this.drawCanvas();
+          },
+          generateMaze: function(){
+              var that = this;
+              return Array(that.canvasHeight).fill().map(()=>Array(that.canvasWidth).fill( "." ))
+          },
+          toggleDot: function(y,x){
+            var maze = this.maze;
+            if (maze[x][y] == "x") {
+              maze[x][y] = ".";
+            } else {
+              maze[x][y] = "x";
+            }
+            this.maze = maze;
+            this.drawCanvas();
+          },
+          drawCanvas: function(){
+            $("#canvas").remove();
+            var c = $('<canvas/>', {'class':'canvas', id: 'canvas'}).attr({'width':this.canvasWidthPx,'height': this.canvasHeightPx });
+            $(".canvas-container").append(c);
+            $("#canvas").on('mouseup', function(e){
+                if (isDown === false) {
+                    isDown = true;
+                    var pos = getMousePos(canvas, e);
+                    x1 = pos.x;
+                    y1 = pos.y;
+                    app.toggleDot( Math.floor(x1/app.dotSize), Math.floor(y1/app.dotSize) )
+                }
+            });
+            this.canvas = $("#canvas")[0];
+            var context = this.canvas.getContext('2d');
+              for (var row=0; row< this.maze.length; row++){
+                for (var col=0; col < this.maze[row].length; col++ ){
+                  context.beginPath();
+                  context.rect(col*this.dotSize-5,row*this.dotSize-5,this.dotSize+5,this.dotSize+5);
+                  context.fillStyle = '#ccc'; // default
+                  if (this.maze[row][col] == "x") { // wall
+                    context.fillStyle = 'black';
+                  }
+                  if (this.maze[row][col] == "E") {
+                    context.fillStyle = "green";
+                  }
+                  if (this.maze[row][col] == "S") {
+                    context.fillStyle = "red";
+                  }
+                  if (this.maze[row][col] == "P") {
+                    context.fillStyle = "orange";
+                  }
+                  var context = this.canvas.getContext('2d');
+                  context.fill();
+                }
+              }
+
+          },
+          generateDots: function(){
+            var i =0;
+            var should_exit = 0;
+            var maze = this.maze;
+            while (i < this.dotCount && should_exit < 5000) {
+              var randomX = Math.floor( Math.random() * (this.maze[0].length) );
+              var randomY = Math.floor( Math.random() * (this.maze.length) );
+              if ( [".", "x"].includes(maze[randomY][randomX])) {
+                if (maze[randomY][randomX] == "." ) {
+                  maze[randomY][randomX] = "x";
+                } else {
+                  maze[randomY][randomX] = ".";
+                }
+                i++;
+              }
+              should_exit++;
+            }
+            this.maze = maze;
+            this.valid = false;
+          },
+          jiggleDots: function(){
+            this.generateDots();
+            this.drawCanvas();
+          },
+          generateEntryExit: function(){
+            var maze = this.maze;
+            if (this.entry && this.exit) {
+              maze[this.entry[0]][this.entry[1]] = ".";
+              maze[this.exit[0]][this.exit[1]] = ".";
+              this.entry = false; this.exit = false;
+            }
+            this.entry = [Math.floor( Math.random() * (this.maze.length-1) ), Math.floor( Math.random() * (this.maze[0].length-1) ) ];
+            this.exit = [Math.floor( Math.random() * (this.maze.length-1) ), Math.floor( Math.random() * (this.maze[0].length-1) ) ];
+
+            maze[this.entry[0]][this.entry[1]] = "S";
+            maze[this.exit[0]][this.exit[1]] = "E";
+            this.maze = maze;
+            this.drawCanvas();
+          },
+          validateMaze: function(){
+            if (!this.validating) {
+              this.valid = false;
+              this.validating = true;
+              this.$http.post("/maze/validate", { maze: this.maze } ).then(function(response){
+                this.valid = response.body.valid;
+                this.validating = false;
+                this.show_validation_status = true;
+                this.show_validation_status_timer = setTimeout(() => { this.show_validation_status = false; }, 2500);
+              }, function(error){
+                this.valid = false;
+                console.log(error)
+                this.alert("Error, likely stack error during recursion.")
+                this.validating = false;
+                this.show_validation_status = true;
+                this.show_validation_status_timer = setTimeout(() => { this.show_validation_status = false; }, 10000);
+              });
+            }
+          },
+          alert: function(txt){alert(txt)},
+          solveMaze: function(){
+            if (this.valid && !this.solving){
+              this.show_validation_status = false;
+              this.solving = true;
+              this.$http.post("/maze/solve", { maze: this.maze }).then(function(response){
+                this.solving = false;
+                this.maze = response.body.maze;
+                this.drawCanvas();
+              }, function(error){
+                this.solving = false;
+                console.log(error);
+              });
+            }
+          }
+
+        },
+        computed: {
+          canvasWidthPx: function(){ return this.canvasWidth*this.dotSize },
+          canvasHeightPx: function(){ return this.canvasHeight*this.dotSize }
+        },
+        watch: {
+          canvasWidth: function(){ this.generateMaze() },
+          canvasHeight: function(){ this.generateMaze() }
+        }
+      })
+
+
+      // other crap
+      Array.prototype.sample = function(){
+        return this[~~(Math.random() * this.length)];
+      };
+      function getMousePos(canvas, evt) {
+        var rect = canvas.getBoundingClientRect();
+        return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top
+          };
+        }
+        $(window).on('mouseup', function(e){
+
+        if (isDown === true) {
+
+            var pos = getMousePos(canvas, e);
+            x2 = pos.x;
+            y2 = pos.y;
+
+            isDown = false;
+        }
+      });
+    </script>
