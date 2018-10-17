@@ -1,6 +1,6 @@
 require "colorize"
 
-class Hypermaze # copied from https://github.com/sethm/ruby_maze + support for 3D maze
+class Hypermaze # copied from https://github.com/sethm/ruby_maze and added support for 3D maze
   attr_accessor :maze
 
   DIRECTIONS = [ [0, -1, 0], [0, 1, 0 ], [0, 0, -1], [0, 0, 1 ], [-1, 0, 0 ], [1, 0, 0] ] # [plane, row, col]
